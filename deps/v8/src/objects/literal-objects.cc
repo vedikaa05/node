@@ -521,6 +521,7 @@ class ObjectDescriptor {
         element_count_ || computed_count_
             ? NumberDictionary::New(isolate, element_count_ + computed_count_,
                                     AllocationType::kOld)
+                  .ToHandleChecked()
             : factory->empty_slow_element_dictionary();
 
     computed_properties_ =
@@ -841,7 +842,7 @@ void RegExpBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
   static_assert(JSRegExp::kFlagsOffset ==
                 JSRegExp::kSourceOffset + kTaggedSize);
   static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
-  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   os << " " << Brief(data(isolate)) << ", " << Brief(source()) << ", "
      << flags();
 }

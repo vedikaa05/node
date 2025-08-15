@@ -501,7 +501,7 @@ Maybe<bool> ValueSerializer::WriteObject(DirectHandle<Object> object) {
       if (!id_map_.Find(view) && !treat_array_buffer_views_as_host_objects_) {
         DirectHandle<JSArrayBuffer> buffer(
             InstanceTypeChecker::IsJSTypedArray(instance_type)
-                ? Cast<JSTypedArray>(view)->GetBuffer()
+                ? Cast<JSTypedArray>(view)->GetBuffer(isolate_)
                 : direct_handle(Cast<JSArrayBuffer>(view->buffer()), isolate_));
         if (!WriteJSReceiver(buffer).FromMaybe(false)) return Nothing<bool>();
       }
@@ -1537,7 +1537,8 @@ Maybe<base::Vector<const uint8_t>> ValueDeserializer::ReadRawBytes(
 
 Maybe<base::Vector<const base::uc16>> ValueDeserializer::ReadRawTwoBytes(
     size_t size) {
-  if (size > static_cast<size_t>(end_ - position_) ||
+  if (!IsAligned(reinterpret_cast<uintptr_t>(position_), 2) ||
+      size > static_cast<size_t>(end_ - position_) ||
       size % sizeof(base::uc16) != 0) {
     return Nothing<base::Vector<const base::uc16>>();
   }
@@ -1576,7 +1577,7 @@ void ValueDeserializer::TransferArrayBuffer(
     uint32_t transfer_id, DirectHandle<JSArrayBuffer> array_buffer) {
   if (array_buffer_transfer_map_.is_null()) {
     array_buffer_transfer_map_ = isolate_->global_handles()->Create(
-        *SimpleNumberDictionary::New(isolate_, 0));
+        *SimpleNumberDictionary::New(isolate_, 0).ToHandleChecked());
   }
   IndirectHandle<SimpleNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
@@ -1943,7 +1944,8 @@ MaybeDirectHandle<JSDate> ValueDeserializer::ReadJSDate() {
   if (!ReadDouble().To(&value)) return MaybeDirectHandle<JSDate>();
   uint32_t id = next_id_++;
   DirectHandle<JSDate> date;
-  if (!JSDate::New(isolate_->date_function(), isolate_->date_function(), value)
+  if (!JSDate::New(isolate_, isolate_->date_function(),
+                   isolate_->date_function(), value)
            .ToHandle(&date)) {
     return MaybeDirectHandle<JSDate>();
   }

@@ -275,7 +275,7 @@ void GlobalDictionary::SetEntry(InternalIndex entry, Tagged<Object> key,
 }
 
 void GlobalDictionary::ClearEntry(InternalIndex entry) {
-  Tagged<Hole> the_hole = GetReadOnlyRoots().the_hole_value();
+  Tagged<TheHole> the_hole = GetReadOnlyRoots().the_hole_value();
   set(EntryToIndex(entry) + kEntryKeyIndex, the_hole);
 }
 
@@ -288,7 +288,7 @@ bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Tagged<Object> other) {
 }
 
 uint32_t NumberDictionaryBaseShape::Hash(ReadOnlyRoots roots, uint32_t key) {
-  return ComputeSeededHash(key, HashSeed(roots));
+  return ComputeSeededHash(key, HashSeed(roots).seed());
 }
 
 uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
@@ -296,7 +296,7 @@ uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
   DCHECK(IsNumber(other));
   return ComputeSeededHash(
       static_cast<uint32_t>(Object::NumberValue(Cast<Number>(other))),
-      HashSeed(roots));
+      HashSeed(roots).seed());
 }
 
 template <AllocationType allocation>

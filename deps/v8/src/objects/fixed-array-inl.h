@@ -289,7 +289,8 @@ TaggedArrayBase<D, S, P>::RawFieldOfElementAt(int index) const {
 // static
 template <class IsolateT>
 Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
-                                   AllocationType allocation) {
+                                   AllocationType allocation,
+                                   AllocationHint hint) {
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
                   FixedArrayBase::kMaxLength)) {
     FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
@@ -300,7 +301,7 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
 
   std::optional<DisallowGarbageCollection> no_gc;
   Handle<FixedArray> result =
-      Cast<FixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
+      Cast<FixedArray>(Allocate(isolate, capacity, &no_gc, allocation, hint));
   ReadOnlyRoots roots{isolate};
   MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
                capacity);
@@ -357,15 +358,15 @@ template <class IsolateT>
 Handle<D> TaggedArrayBase<D, S, P>::Allocate(
     IsolateT* isolate, int capacity,
     std::optional<DisallowGarbageCollection>* no_gc_out,
-    AllocationType allocation) {
+    AllocationType allocation, AllocationHint hint) {
   // Note 0-capacity is explicitly allowed since not all subtypes can be
   // assumed to have canonical 0-capacity instances.
   DCHECK_GE(capacity, 0);
   DCHECK_LE(capacity, kMaxCapacity);
   DCHECK(!no_gc_out->has_value());
 
-  Tagged<D> xs = UncheckedCast<D>(
-      isolate->factory()->AllocateRawArray(SizeFor(capacity), allocation));
+  Tagged<D> xs = UncheckedCast<D>(isolate->factory()->AllocateRawArray(
+      SizeFor(capacity), allocation, hint));
 
   ReadOnlyRoots roots{isolate};
   if (DEBUG_BOOL) no_gc_out->emplace();
@@ -393,7 +394,10 @@ constexpr int TaggedArrayBase<D, S, P>::NewCapacityForIndex(int index,
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
-NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
+inline int WeakArrayList::capacity(RelaxedLoadTag) const {
+  int value = TaggedField<Smi>::Relaxed_Load(*this, kCapacityOffset).value();
+  return value;
+}
 
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return IsTheHole(get(index), isolate);
@@ -437,7 +441,9 @@ Handle<FixedArray> FixedArray::Resize(Isolate* isolate,
   return ys;
 }
 
-inline int WeakArrayList::AllocatedSize() const { return SizeFor(capacity()); }
+inline int WeakArrayList::AllocatedSize() const {
+  return SizeFor(capacity(kRelaxedLoad));
+}
 
 template <class D, class S, class P>
 bool PrimitiveArrayBase<D, S, P>::IsInBounds(int index) const {
@@ -566,9 +572,6 @@ Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
 
 void FixedDoubleArray::set(int index, double value) {
   if (std::isnan(value)) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    DCHECK(!IsUndefinedNan(value));
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     value = std::numeric_limits<double>::quiet_NaN();
   }
   values()[index].set_value(value);
@@ -841,13 +844,13 @@ Address FixedIntegerArrayBase<T, Base>::get_element_address(int index) const {
 
 template <typename T, typename Base>
 T FixedIntegerArrayBase<T, Base>::get(int index) const {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
   return base::ReadUnalignedValue<T>(get_element_address(index));
 }
 
 template <typename T, typename Base>
 void FixedIntegerArrayBase<T, Base>::set(int index, T value) {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
   return base::WriteUnalignedValue<T>(get_element_address(index), value);
 }
 

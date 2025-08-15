@@ -124,7 +124,8 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw);
 // allocation of the C++ vtable.
 // There must only be a single data member in Object: the Address ptr,
 // containing the tagged heap pointer that this Object instance refers to.
-// For a design overview, see https://goo.gl/Ph4CGz.
+// For a design overview, see:
+// https://docs.google.com/document/d/1_w49sakC1XM1OptjTurBDqO86NE16FH8LwbeUAtrbCo
 class Object : public AllStatic {
  public:
   enum class Conversion {
@@ -705,14 +706,15 @@ V8_INLINE bool IsAnyHole(Tagged<Object> obj);
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value, _)                         \
+#define IS_TYPE_FUNCTION_DECL(Type, ...)                              \
   V8_INLINE bool Is##Type(Tagged<Object> obj, Isolate* isolate);      \
   V8_INLINE bool Is##Type(Tagged<Object> obj, LocalIsolate* isolate); \
   V8_INLINE bool Is##Type(Tagged<Object> obj, ReadOnlyRoots roots);   \
   V8_INLINE bool Is##Type(Tagged<Object> obj);
 ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
+IS_TYPE_FUNCTION_DECL(UndefinedContextCell)
+IS_TYPE_FUNCTION_DECL(NullOrUndefined)
 #undef IS_TYPE_FUNCTION_DECL
 
 V8_INLINE bool IsZero(Tagged<Object> obj);
@@ -859,6 +861,9 @@ class FixedBodyDescriptor;
 
 template <int start_offset>
 class FlexibleBodyDescriptor;
+
+template <int start_offset, int end_offset, int size>
+class FixedWeakBodyDescriptor;
 
 template <int start_offset>
 class FlexibleWeakBodyDescriptor;

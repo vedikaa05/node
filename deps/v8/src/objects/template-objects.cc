@@ -49,7 +49,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
     Isolate* isolate, DirectHandle<NativeContext> native_context,
     DirectHandle<TemplateObjectDescription> description,
     DirectHandle<SharedFunctionInfo> shared_info, int slot_id) {
-  int function_literal_id = shared_info->function_literal_id();
+  int function_literal_id = shared_info->function_literal_id(kRelaxedLoad);
 
   // Check the template weakmap to see if the template object already exists.
   DirectHandle<Script> script(Cast<Script>(shared_info->script(isolate)),
@@ -111,7 +111,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
         native_context->template_weakmap();
     Handle<EphemeronHashTable> template_weakmap;
     if (IsUndefined(maybe_template_weakmap)) {
-      template_weakmap = EphemeronHashTable::New(isolate, 1);
+      template_weakmap = EphemeronHashTable::New(isolate, 1).ToHandleChecked();
     } else {
       template_weakmap =
           handle(Cast<EphemeronHashTable>(maybe_template_weakmap), isolate);
